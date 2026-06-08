@@ -1,0 +1,219 @@
+// Framework-agnostic floating panel rendered with plain DOM. Subscribes to the
+// core store and shows requests live. React/Vue/etc. wrappers just call mount().
+
+import {
+  installFetchLogger,
+  subscribe,
+  getLogs,
+  clearLogs,
+  type InstallOptions,
+} from "./core";
+
+export interface MountOptions extends InstallOptions {
+  /** Auto-install the fetch patch when mounting. Default true. */
+  autoInstall?: boolean;
+  /** Start expanded. Default false (collapsed). */
+  defaultOpen?: boolean;
+  /** Where the panel anchors. Default "bottom-center". */
+  position?: "bottom-center" | "bottom-right" | "bottom-left";
+  /** Element to append the panel to. Default document.body. */
+  container?: HTMLElement;
+}
+
+const statusColor = (status?: number) => {
+  if (!status) return "#9ca3af";
+  if (status >= 500) return "#ef4444";
+  if (status >= 400) return "#f97316";
+  if (status >= 300) return "#3b82f6";
+  return "#10b981";
+};
+
+const el = (tag: string, style: Partial<CSSStyleDeclaration> = {}, text?: string) => {
+  const node = document.createElement(tag);
+  Object.assign(node.style, style);
+  if (text !== undefined) node.textContent = text;
+  return node;
+};
+
+/**
+ * Mount the floating fetch-logger panel. Returns an unmount function that
+ * removes the panel and (if autoInstall) restores the original fetch.
+ */
+export function mountFetchLoggerPanel(options: MountOptions = {}): () => void {
+  if (typeof document === "undefined") return () => {};
+
+  const uninstall =
+    options.autoInstall === false ? () => {} : installFetchLogger(options);
+
+  const container = options.container || document.body;
+  let open = options.defaultOpen ?? false;
+  let hidden = false;
+  let selected: number | null = null;
+  let filter = "";
+
+  const root = el("div", {
+    position: "fixed",
+    bottom: "12px",
+    zIndex: "2147483647",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: "11px",
+    borderRadius: "10px",
+    overflow: "hidden",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+    background: "rgba(15,23,42,0.92)",
+    color: "#e2e8f0",
+    display: "flex",
+    flexDirection: "column",
+  });
+
+  const place = (w: number) => {
+    const pos = options.position || "bottom-center";
+    if (pos === "bottom-right") { root.style.right = "12px"; root.style.left = ""; root.style.transform = ""; }
+    else if (pos === "bottom-left") { root.style.left = "12px"; root.style.right = ""; root.style.transform = ""; }
+    else { root.style.left = "50%"; root.style.right = ""; root.style.transform = `translateX(-50%)`; void w; }
+  };
+
+  container.appendChild(root);
+
+  const render = () => {
+    root.innerHTML = "";
+    const logs = getLogs();
+
+    if (hidden) {
+      root.style.width = "auto";
+      root.style.maxHeight = "auto";
+      const pill = el("button", {
+        all: "unset", cursor: "pointer", padding: "6px 12px",
+        color: "#a5b4fc", fontWeight: "bold", display: "block",
+      } as any, `🛰 ${logs.length}`);
+      pill.title = "Open Fetch Logger";
+      pill.onclick = () => { hidden = false; open = true; render(); };
+      root.appendChild(pill);
+      return;
+    }
+
+    const W = !open ? 160 : selected != null ? Math.min(700, window.innerWidth - 16) : Math.min(340, window.innerWidth - 16);
+    root.style.width = `${W}px`;
+    root.style.maxHeight = open ? "480px" : "auto";
+    place(W);
+
+    // ── header ──
+    const header = el("div", {
+      display: "flex", alignItems: "center", gap: "8px",
+      padding: "6px 10px", background: "rgba(30,41,59,0.8)", flexShrink: "0",
+    });
+    header.appendChild(el("span", { color: "#a5b4fc", fontWeight: "bold", fontSize: "12px" }, "🛰 Fetch Logger"));
+    header.appendChild(el("span", { color: "#94a3b8", fontSize: "10px" }, `${logs.length} req${logs.length !== 1 ? "s" : ""}`));
+    const ctrls = el("div", { marginLeft: "auto", display: "flex", gap: "8px", alignItems: "center" });
+    if (open) {
+      const clearBtn = el("span", { color: "#cbd5e1", cursor: "pointer" }, "✕ clear");
+      clearBtn.onclick = (e) => { e.stopPropagation(); clearLogs(); selected = null; render(); };
+      ctrls.appendChild(clearBtn);
+    }
+    const toggle = el("span", { color: "#cbd5e1", cursor: "pointer", fontSize: "13px" }, open ? "▼" : "▲");
+    toggle.onclick = () => { open = !open; render(); };
+    ctrls.appendChild(toggle);
+    const close = el("span", { color: "#f87171", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }, "✕");
+    close.title = "Close";
+    close.onclick = () => { hidden = true; render(); };
+    ctrls.appendChild(close);
+    header.appendChild(ctrls);
+    header.onclick = (e) => { if (e.target === header) { open = !open; render(); } };
+    root.appendChild(header);
+
+    if (!open) return;
+
+    const body = el("div", { display: "flex", flex: "1", overflow: "hidden", minHeight: "0" });
+
+    // ── list ──
+    const detail = selected != null ? logs.find((l) => l.id === selected) : null;
+    const list = el("div", {
+      width: detail ? `${Math.min(240, Math.floor(W * 0.4))}px` : "100%",
+      display: "flex", flexDirection: "column",
+      borderRight: detail ? "1px solid #334155" : "none", flexShrink: "0",
+    });
+
+    const filterWrap = el("div", { padding: "4px 6px", borderBottom: "1px solid #334155" });
+    const input = el("input", {
+      width: "100%", background: "#1e293b", border: "1px solid #475569",
+      borderRadius: "4px", color: "#f1f5f9", fontSize: "11px",
+      padding: "3px 6px", outline: "none", boxSizing: "border-box",
+    } as any) as HTMLInputElement;
+    input.placeholder = "filter…";
+    input.value = filter;
+    input.oninput = () => { filter = input.value; render(); input.focus(); };
+    filterWrap.appendChild(input);
+    list.appendChild(filterWrap);
+
+    const rows = el("div", { overflowY: "auto", flex: "1" });
+    const filtered = filter
+      ? logs.filter((l) => l.url.includes(filter) || (l.apiCode || "").toLowerCase().includes(filter.toLowerCase()))
+      : logs;
+    if (filtered.length === 0) {
+      rows.appendChild(el("div", { padding: "12px", color: "#94a3b8", textAlign: "center" }, "no requests yet"));
+    }
+    filtered.forEach((log) => {
+      const active = selected === log.id;
+      const row = el("div", {
+        display: "flex", alignItems: "center", gap: "5px",
+        padding: "5px 8px", cursor: "pointer", borderBottom: "1px solid #334155",
+        background: active ? "#334155" : "transparent",
+        borderLeft: active ? "2px solid #a5b4fc" : "2px solid transparent",
+      });
+      const statusEl = log.pending
+        ? el("span", { color: "#fbbf24", fontSize: "9px" }, "⏳")
+        : el("span", { color: statusColor(log.status), minWidth: "24px", fontSize: "10px", fontWeight: "bold" }, log.error ? "ERR" : String(log.status));
+      row.appendChild(statusEl);
+      row.appendChild(el("span", { color: "#fbbf24", fontSize: "10px", minWidth: "28px", fontWeight: "bold" }, log.method));
+      const label = log.apiCode || log.url.replace(/^https?:\/\/[^/]+/, "");
+      row.appendChild(el("span", { color: "#e2e8f0", flex: "1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "10px" }, label));
+      if (log.elapsed !== undefined) row.appendChild(el("span", { color: "#c4b5fd", fontSize: "9px", flexShrink: "0" }, `${log.elapsed}ms`));
+      row.onclick = () => { selected = active ? null : log.id; render(); };
+      rows.appendChild(row);
+    });
+    list.appendChild(rows);
+    body.appendChild(list);
+
+    // ── detail ──
+    if (detail) {
+      const pane = el("div", { flex: "1", overflow: "hidden", display: "flex", flexDirection: "column" });
+      const bar = el("div", { padding: "5px 10px", background: "#1e293b", borderBottom: "1px solid #475569", flexShrink: "0", display: "flex", alignItems: "center", gap: "6px" });
+      bar.appendChild(el("span", { color: "#fbbf24", fontWeight: "bold" }, detail.method));
+      bar.appendChild(el("span", { color: statusColor(detail.status), fontWeight: "bold" }, String(detail.status ?? "")));
+      bar.appendChild(el("span", { color: "#cbd5e1", wordBreak: "break-all", flex: "1" }, detail.url));
+      if (detail.elapsed !== undefined) bar.appendChild(el("span", { color: "#c4b5fd", flexShrink: "0" }, `${detail.elapsed}ms`));
+      const x = el("span", { color: "#94a3b8", cursor: "pointer", flexShrink: "0", paddingLeft: "4px" }, "✕");
+      x.onclick = () => { selected = null; render(); };
+      bar.appendChild(x);
+      pane.appendChild(bar);
+
+      const bodies = el("div", { display: "flex", flex: "1", overflow: "hidden", minHeight: "0" });
+      const mkSide = (title: string, titleColor: string, content: unknown, color: string, border: boolean) => {
+        const side = el("div", { flex: "1", display: "flex", flexDirection: "column", overflow: "hidden", borderRight: border ? "1px solid #334155" : "none" });
+        side.appendChild(el("div", { padding: "3px 8px", background: "rgba(22,32,50,0.7)", color: titleColor, fontSize: "10px", fontWeight: "bold", flexShrink: "0" }, title));
+        const scroll = el("div", { flex: "1", overflowY: "auto", padding: "6px 8px" });
+        const pre = el("pre", { margin: "0", color, whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: "10px" },
+          content === undefined ? "— no body —" : typeof content === "string" ? content : JSON.stringify(content, null, 2));
+        scroll.appendChild(pre);
+        side.appendChild(scroll);
+        return side;
+      };
+      bodies.appendChild(mkSide("↑ REQUEST", "#bfdbfe", detail.reqBody, "#bfdbfe", true));
+      bodies.appendChild(mkSide("↓ RESPONSE", "#a7f3d0", detail.error ? `ERROR: ${detail.error}` : detail.resBody, detail.error ? "#fca5a5" : "#a7f3d0", false));
+      pane.appendChild(bodies);
+      body.appendChild(pane);
+    }
+
+    root.appendChild(body);
+    rows.scrollTop = rows.scrollHeight;
+  };
+
+  const unsub = subscribe(() => render());
+  render();
+
+  return () => {
+    unsub();
+    uninstall();
+    if (root.parentNode) root.parentNode.removeChild(root);
+  };
+}
