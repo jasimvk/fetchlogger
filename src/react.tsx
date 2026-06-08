@@ -1,5 +1,5 @@
 // Optional React wrapper. Reuses the single vanilla panel implementation, so
-// there is only one UI to maintain. Import from "@jasimvk/fetchlogger/react".
+// there is only one UI to maintain. Import from "@jasimvkarim/fetchlogger/react".
 import { useEffect } from "react";
 import { mountFetchLoggerPanel, type MountOptions } from "./panel";
 

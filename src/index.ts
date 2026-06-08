@@ -1,4 +1,4 @@
-// Framework-agnostic entry. React wrapper lives at "@jasimvk/fetchlogger/react".
+// Framework-agnostic entry. React wrapper lives at "@jasimvkarim/fetchlogger/react".
 export {
   installFetchLogger,
   uninstallFetchLogger,
