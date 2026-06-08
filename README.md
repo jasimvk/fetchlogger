@@ -1,4 +1,4 @@
-# @jasimvkarim/fetchlogger
+# @jasimvk/fetchlogger
 
 A live, in-page **fetch logger panel** for debugging API calls — see every request/response without opening DevTools. Framework-agnostic core with an optional React wrapper.
 
@@ -11,13 +11,13 @@ A live, in-page **fetch logger panel** for debugging API calls — see every req
 ## Install
 
 ```bash
-npm i -D @jasimvkarim/fetchlogger
+npm i -D @jasimvk/fetchlogger
 ```
 
 ## React
 
 ```tsx
-import FetchLogger from "@jasimvkarim/fetchlogger/react";
+import FetchLogger from "@jasimvk/fetchlogger/react";
 
 export default function App() {
   return (
@@ -36,7 +36,7 @@ export default function App() {
 ## Any framework / plain JS
 
 ```ts
-import { mountFetchLoggerPanel } from "@jasimvkarim/fetchlogger";
+import { mountFetchLoggerPanel } from "@jasimvk/fetchlogger";
 
 const unmount = mountFetchLoggerPanel({ position: "bottom-center" });
 // later: unmount();
@@ -45,7 +45,7 @@ const unmount = mountFetchLoggerPanel({ position: "bottom-center" });
 ## Just the data (no UI)
 
 ```ts
-import { installFetchLogger, subscribe } from "@jasimvkarim/fetchlogger";
+import { installFetchLogger, subscribe } from "@jasimvk/fetchlogger";
 
 installFetchLogger({ getLabel: (body) => (body as any)?.API_Code });
 const off = subscribe((log) => console.log(log.method, log.url, log.status));

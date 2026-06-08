@@ -1,12 +1,12 @@
 {
-  "name": "@jasimvkarim/fetchlogger",
+  "name": "@jasimvk/fetchlogger",
   "version": "0.1.0",
   "description": "Live in-page fetch/XHR logger panel — framework-agnostic core with an optional React wrapper.",
-  "author": "jasimvkarim",
+  "author": "jasimvk",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jasimvkarim/fetchlogger.git"
+    "url": "git+https://github.com/jasimvk/fetchlogger.git"
   },
   "keywords": ["fetch", "logger", "devtools", "debug", "network", "react", "panel"],
   "type": "module",
