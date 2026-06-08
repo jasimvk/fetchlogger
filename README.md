@@ -1,5 +1,11 @@
 # @jasimvk/fetchlogger
 
+[![npm version](https://img.shields.io/npm/v/@jasimvk/fetchlogger?color=cb3837&logo=npm)](https://www.npmjs.com/package/@jasimvk/fetchlogger)
+[![npm downloads](https://img.shields.io/npm/dm/@jasimvk/fetchlogger?color=blue)](https://www.npmjs.com/package/@jasimvk/fetchlogger)
+[![minzipped size](https://img.shields.io/bundlephobia/minzip/@jasimvk/fetchlogger?color=success)](https://bundlephobia.com/package/@jasimvk/fetchlogger)
+[![license](https://img.shields.io/npm/l/@jasimvk/fetchlogger?color=lightgrey)](./LICENSE)
+[![types](https://img.shields.io/npm/types/@jasimvk/fetchlogger)](https://www.npmjs.com/package/@jasimvk/fetchlogger)
+
 A live, in-page **fetch logger panel** for debugging API calls — see every request/response without opening DevTools. Framework-agnostic core with an optional React wrapper.
 
 - 🛰 Floating panel, collapsible, draggable position

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@jasimvk/fetchlogger — vanilla demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #1e293b; }
+      h1 { font-size: 20px; }
+      button { font: inherit; padding: 8px 14px; margin: 4px 6px 4px 0; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }
+      button:hover { background: #f1f5f9; }
+      code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>🛰 @jasimvk/fetchlogger — vanilla demo</h1>
+    <p>Click the buttons to fire requests. The logger panel appears bottom-center — click its header to expand, then click a row to inspect.</p>
+
+    <button id="get">GET /todos/1</button>
+    <button id="post">POST /posts</button>
+    <button id="fail">GET (404)</button>
+
+    <!-- Loaded from a CDN so this file runs with zero build/install. -->
+    <script type="module">
+      import { mountFetchLoggerPanel } from "https://esm.sh/@jasimvk/fetchlogger";
+
+      // Mount once. getLabel pulls a short label from JSON request bodies.
+      mountFetchLoggerPanel({
+        defaultOpen: true,
+        getLabel: (body) => (body && body.title ? `post:${body.title}` : undefined),
+      });
+
+      const API = "https://jsonplaceholder.typicode.com";
+      document.getElementById("get").onclick = () => fetch(`${API}/todos/1`);
+      document.getElementById("post").onclick = () =>
+        fetch(`${API}/posts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: "hello", body: "world", userId: 1 }),
+        });
+      document.getElementById("fail").onclick = () => fetch(`${API}/nope-404`).catch(() => {});
+    </script>
+  </body>
+</html>
